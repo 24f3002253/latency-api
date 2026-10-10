@@ -2,18 +2,32 @@
 from typing import List
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
 
-# Allow POST (and the OPTIONS preflight) from any origin
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["POST", "OPTIONS", "GET"],
-    allow_headers=["*"],
-)
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "*",
+}
+
+
+# Add CORS headers to EVERY response (even when no Origin header is sent),
+# and answer OPTIONS preflight requests directly.
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = Response(status_code=204)
+    else:
+        try:
+            response = await call_next(request)
+        except Exception:
+            response = JSONResponse({"error": "Internal error"}, status_code=500)
+    for k, v in CORS_HEADERS.items():
+        response.headers[k] = v
+    return response
+
 
 # Telemetry from q-vercel-latency.json, embedded so no file I/O is needed.
 # Each row: [region, latency_ms, uptime_pct]
