@@ -6,13 +6,6 @@ from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
 
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "*",
-}
-
-
 # Add CORS headers to EVERY response (even when no Origin header is sent),
 # and answer OPTIONS preflight requests directly.
 @app.middleware("http")
@@ -24,8 +17,13 @@ async def add_cors_headers(request: Request, call_next):
             response = await call_next(request)
         except Exception:
             response = JSONResponse({"error": "Internal error"}, status_code=500)
-    for k, v in CORS_HEADERS.items():
-        response.headers[k] = v
+    requested = request.headers.get("access-control-request-headers", "Content-Type")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = requested
+    response.headers["Access-Control-Max-Age"] = "86400"
+    # Make the CORS headers readable by JavaScript on other sites
+    response.headers["Access-Control-Expose-Headers"] = "Access-Control-Allow-Origin, Access-Control-Allow-Methods, Content-Type, Content-Length"
     return response
 
 
